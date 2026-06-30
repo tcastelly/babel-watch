@@ -1,6 +1,6 @@
 {
   "name": "@tcy/babel-watch",
-  "version": "8.0.0-beta.7",
+  "version": "8.0.0-beta.8",
   "description": "Reload your babel-node app on JS source file changes. And do it *fast*.",
   "keywords": [
     "babel",
@@ -14,12 +14,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kmagiera/babel-watch.git"
+    "url": "git+https://github.com/tcastelly/babel-watch.git"
   },
   "license": "MIT",
   "author": {
-    "name": "Krzysztof Magiera",
-    "email": "krzys.magiera@gmail.com"
+    "name": "Thomas CASTELLY",
+    "email": "thomas@castelly.fr"
   },
   "main": "dist/babel-watch.js",
   "bin": {
