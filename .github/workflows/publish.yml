@@ -1,4 +1,4 @@
-name: Lint
+name: Publish
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
         uses: tcastelly/package-json-updated-action@master
         id: version-updated
         with:
-          path: './ts_gen/package.json'
+          path: './package.json'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
