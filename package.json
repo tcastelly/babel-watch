@@ -1,64 +1,70 @@
 {
-  "name": "babel-watch",
-  "version": "7.8.1",
+  "name": "@tcy/babel-watch",
+  "version": "8.0.0-beta.1",
   "description": "Reload your babel-node app on JS source file changes. And do it *fast*.",
-  "main": "babel-watch.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "flow && eslint && yarn fmt:check",
-    "flow": "flow",
-    "fmt": "prettier --write ./**.{json,js,yml,md}",
-    "fmt:check": "prettier --check ./**.{json,js,yml,md}"
-  },
-  "engines": {
-    "node": ">= 8"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kmagiera/babel-watch.git"
-  },
-  "files": [
-    "babel-watch.js",
-    "runner.js"
-  ],
   "keywords": [
     "babel",
     "nodemon",
     "babel-node",
     "watch"
   ],
-  "author": {
-    "email": "krzys.magiera@gmail.com",
-    "name": "Krzysztof Magiera"
-  },
-  "license": "MIT",
-  "readmeFilename": "README.md",
+  "homepage": "https://github.com/kmagiera/babel-watch#readme",
   "bugs": {
     "url": "https://github.com/kmagiera/babel-watch/issues"
   },
-  "homepage": "https://github.com/kmagiera/babel-watch#readme",
-  "dependencies": {
-    "chalk": "^4.1.0",
-    "chokidar": "^3.4.3",
-    "commander": "^6.2.0",
-    "debug": "^4.3.1",
-    "lodash.debounce": "^4.0.8",
-    "lodash.isregexp": "^4.0.1",
-    "lodash.isstring": "^4.0.1",
-    "signal-exit": "^4.0.2",
-    "source-map-support": "^0.5.19",
-    "string-argv": "^0.3.2"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kmagiera/babel-watch.git"
   },
-  "peerDependencies": {
-    "@babel/core": "^7.0.0"
+  "license": "MIT",
+  "author": {
+    "name": "Krzysztof Magiera",
+    "email": "krzys.magiera@gmail.com"
   },
+  "main": "dist/babel-watch.js",
   "bin": {
-    "babel-watch": "./babel-watch.js"
+    "babel-watch": "dist/babel-watch.js"
+  },
+  "files": [
+    "dist/babel-watch.js",
+    "dist/runner.js",
+    "scripts/postinstall.js"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint",
+    "postinstall": "node scripts/postinstall.js",
+    "prepublishOnly": "npm run lint && npm run build"
+  },
+  "dependencies": {
+    "@eslint/js": "^10.0.1",
+    "chalk": "^5.6.2",
+    "chokidar": "^5.0.0",
+    "commander": "^15.0.0",
+    "debug": "^4.4.3",
+    "eslint-plugin-unicorn": "^69.0.0",
+    "globals": "^17.7.0",
+    "lodash": "^4.18.1",
+    "signal-exit": "^4.1.0",
+    "source-map-support": "^0.5.21",
+    "string-argv": "^0.3.2",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.22.5",
-    "eslint": "^8.43.0",
-    "flow-bin": "^0.141.0",
-    "prettier": "^2.8.8"
-  }
+    "@babel/core": "^8.0.1",
+    "@types/debug": "^4.1.13",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^26.0.1",
+    "@types/source-map-support": "^0.5.10",
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.4",
+    "typescript-eslint": "^8.62.1"
+  },
+  "peerDependencies": {
+    "@babel/core": "^8.0.1"
+  },
+  "engines": {
+    "node": ">= 20"
+  },
+  "readmeFilename": "README.md"
 }

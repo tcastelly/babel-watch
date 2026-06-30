@@ -1,24 +1,20 @@
 #!/usr/bin/env node
-// @flow
+import chokidar from "chokidar";
+import path from "node:path";
+import babel from "@babel/core";
+import fs from "node:fs";
+import os from "os";
+import { execSync, fork } from "node:child_process";
+import { onExit } from "signal-exit";
+import util from "util";
+import commander from "commander";
+import lodash from "lodash";
+import chalk from "chalk";
+import Debug from "debug";
+import stringArgv from "string-argv";
+import pkg from "../package.json";
 
-"use strict";
-
-const chokidar = require("chokidar");
-const path = require("path");
-const babel = require("@babel/core");
-const fs = require("fs");
-const os = require("os");
-const fork = require("child_process").fork;
-const { onExit } = require("signal-exit");
-const util = require("util");
-const execSync = require("child_process").execSync;
-const commander = require("commander");
-const debounce = require("lodash.debounce");
-const isString = require("lodash.isstring");
-const isRegExp = require("lodash.isregexp");
-const chalk = require("chalk");
-const Debug = require("debug");
-const stringArgv = require("string-argv").parseArgsStringToArgv;
+const { debounce, isString } = lodash;
 
 const debugInit = Debug("babel-watch:init");
 const debugCompile = Debug("babel-watch:compile");
@@ -26,31 +22,22 @@ const debugWatcher = Debug("babel-watch:watcher");
 
 const DEBOUNCE_DURATION = 100; //milliseconds
 
-const program = new commander.Command("babel-watch");
+const program: any = new commander.Command("babel-watch");
 
-function collect(val, memo) {
+function collect(val: any, memo: any) {
   memo.push(val);
   return memo;
 }
 
-// Plucked directly from old Babel Core
-// https://github.com/babel/babel/commit/0df0c696a93889f029982bf36d34346a039b1920
-function regexify(val) {
-  if (!val) return new RegExp("");
-  if (Array.isArray(val)) val = val.join("|");
-  if (isString(val)) return new RegExp(val || "");
-  if (isRegExp(val)) return val;
-  throw new TypeError("illegal type for regexify");
-}
 
-function arrayify(val) {
+function arrayify(val: any) {
   if (!val) return null;
   if (isString(val)) return val ? val.split(",") : [];
   if (Array.isArray(val)) return val;
   throw new TypeError("illegal type for arrayify");
 }
 
-function booleanify(val) {
+function booleanify(val: any) {
   if (val === "true" || val == 1) return true;
   if (val === "false" || val == 0 || !val) return false;
   return val;
@@ -143,7 +130,6 @@ program.option(
   'When using "--inspect" options, inline source-maps are automatically turned on. Set this option to disable that behavior'
 );
 
-const pkg = require("./package.json");
 program.version(pkg.version);
 program.usage("[options] [script.js] [args]");
 program.description(
@@ -184,25 +170,29 @@ program.on("--help", () => {
   https://github.com/kmagiera/babel-watch
   `);
 });
+program.allowExcessArguments(true);
+program.allowUnknownOption(true);
 program.parse(process.argv);
+const opts = program.opts();
 
 const cwd = process.cwd();
 
-const only = program.only;
-const ignore = program.ignore;
-const configFile = program.configFile
-  ? path.resolve(cwd, program.configFile)
+const only = opts.only;
+const ignore = opts.ignore;
+const configFile = opts.configFile
+  ? path.resolve(cwd, opts.configFile)
   : undefined;
-const rootMode = program.rootMode;
+const rootMode = opts.rootMode;
 // We always transpile the default babel extensions. The option only adds more.
-const transpileExtensions = babel.DEFAULT_EXTENSIONS.concat(
-  program.extensions.map(ext => ext.trim())
-);
+const transpileExtensions = [
+  ...babel.DEFAULT_EXTENSIONS,
+  ...(opts.extensions as string[]).map(ext => ext.trim())
+];
 const debug = Boolean(
-  program.debug || program.debugBrk || program.inspect || program.inspectBrk
+  opts.debug || opts.debugBrk || opts.inspect || opts.inspectBrk
 );
-const restartTimeout = Number.isFinite(program.restartTimeout)
-  ? program.restartTimeout
+const restartTimeout = Number.isFinite(opts.restartTimeout)
+  ? opts.restartTimeout
   : 2000;
 
 const mainModule = program.args[0];
@@ -219,18 +209,18 @@ if (!mainModule.startsWith(".") && !path.isAbsolute(mainModule)) {
 
 let childApp, pipeFd, pipeFilename;
 
-const cache = {};
-const errors = {};
-const ignored = {};
+const cache: { [id: string]: any } = {};
+const errors: { [id: string]: any } = {};
+const ignored: { [id: string]: any } = {};
 
-const watcher = chokidar.watch(program.watch, {
+const watcher = chokidar.watch(opts.watch, {
   persistent: true,
-  ignored: program.exclude,
+  ignored: opts.exclude,
   ignoreInitial: true,
-  usePolling: program.usePolling
+  usePolling: opts.usePolling
 });
-let watcherInitialized = program.watch.length === 0;
-debugInit("Initializing babel-watch with options: %j", program.opts());
+let watcherInitialized = (opts.watch as string[]).length === 0;
+debugInit("Initializing babel-watch with options: %j", opts);
 
 onExit(function (code, signal) {
   debugInit(`${signal || `exitCode ${code}`} received, closing.`);
@@ -256,19 +246,19 @@ watcher.on("error", error => {
 });
 
 // Restart the app when a sequence of keys has been pressed ('rs' by refault)
-if (program.restartCommand) {
+if (opts.restartCommand) {
   process.stdin.setEncoding("utf8");
   process.stdin.on("data", data => {
-    if (String(data).trim() === program.restartCommand) {
+    if (String(data).trim() === opts.restartCommand) {
       restartApp();
     }
   });
 }
 
 const debouncedRestartApp = debounce(restartApp, DEBOUNCE_DURATION);
-let changedFiles = [];
+let changedFiles: string[] = [];
 
-function handleChange(file) {
+function handleChange(file: string) {
   const absoluteFile = path.isAbsolute(file) ? file : path.join(cwd, file);
   const isUsed = Boolean(cache[absoluteFile] || errors[absoluteFile]);
   const isIgnored = shouldIgnore(file);
@@ -305,7 +295,7 @@ function generateTempFilename() {
   );
 }
 
-async function handleFileLoad(filename) {
+async function handleFileLoad(filename: string) {
   const cached = cache[filename];
   if (cached) {
     const stats = fs.statSync(filename);
@@ -329,7 +319,8 @@ async function handleFileLoad(filename) {
     };
     delete errors[filename];
     return [result.code, result.map];
-  } catch (err) {
+  } catch (_err) {
+    const err = _err as Error;
     debugCompile("Compiled file: %s. Success? false", filename);
     // Intentional ignore
     if (err instanceof IgnoredFileError) {
@@ -348,7 +339,7 @@ async function handleFileLoad(filename) {
 
 // Kills the child app. Accepts a callback if you want to start again
 // once it's dead.
-function killApp(cb) {
+function killApp(cb?: () => unknown) {
   let exited = false;
   // Bail out; not started yet or already killed
   if (!childApp) {
@@ -368,7 +359,7 @@ function killApp(cb) {
     if (exited) return;
     exited = true;
     clearState();
-    cb && cb();
+    cb?.();
   }
 
   // Are we still running?
@@ -417,9 +408,9 @@ function killApp(cb) {
 function restartApp() {
   if (!watcherInitialized) return;
   if (childApp) {
-    if (program.clearConsole) console.clear();
-    else if (program.message) {
-      let message = program.message;
+    if (opts.clearConsole) console.clear();
+    else if (opts.message) {
+      let message = opts.message;
       // Include changed files when possible.
       if (message.includes("%s"))
         message = util.format(message, changedFiles.join(","));
@@ -433,15 +424,15 @@ function restartApp() {
   });
 }
 
-function log(...msg) {
-  const preamble = program.colors
+function log(...msg: any) {
+  const preamble = opts.colors
     ? chalk.blue.bold.underline("babel-watch:")
     : ">>> babel-watch:";
   console.log(preamble, ...msg);
 }
 
-function logError(...msg) {
-  const preamble = program.colors
+function logError(...msg: any) {
+  const preamble = opts.colors
     ? chalk.red.bold.underline("babel-watch:")
     : ">>> babel-watch:";
   console.error(preamble, ...msg);
@@ -476,38 +467,38 @@ function restartAppInternal() {
 
   // Support for --debug option
   const runnerExecArgv = process.execArgv.slice();
-  if (program.debug) {
+  if (opts.debug) {
     runnerExecArgv.push(
-      typeof program.debug === "boolean"
+      typeof opts.debug === "boolean"
         ? `--debug`
-        : `--debug=${program.debug}`
+        : `--debug=${opts.debug}`
     );
   }
   // Support for --debug-brk option
-  if (program.debugBrk) {
+  if (opts.debugBrk) {
     runnerExecArgv.push("--debug-brk");
   }
   // Support for --inspect option
-  if (program.inspect) {
+  if (opts.inspect) {
     // Somehow, the default port (2992) is being passed from the node command line. Wipe it out.
     const inspectArg =
-      typeof program.inspect === "boolean"
+      typeof opts.inspect === "boolean"
         ? `--inspect`
-        : `--inspect=${program.inspect}`;
+        : `--inspect=${opts.inspect}`;
     runnerExecArgv.push(inspectArg);
   }
   // Support for --inspect-brk option
-  if (program.inspectBrk) {
+  if (opts.inspectBrk) {
     const inspectBrkArg =
-      typeof program.inspectBrk === "boolean"
+      typeof opts.inspectBrk === "boolean"
         ? `--inspect-brk`
-        : `--inspect-brk=${program.inspectBrk}`;
+        : `--inspect-brk=${opts.inspectBrk}`;
     runnerExecArgv.push(inspectBrkArg);
   }
 
-  if (program.beforeRestart) {
-    log(`Running command "${program.beforeRestart}" before restart.`);
-    execSync(program.beforeRestart, { stdio: "inherit" }); // pass stdio to console
+  if (opts.beforeRestart) {
+    log(`Running command "${opts.beforeRestart}" before restart.`);
+    execSync(opts.beforeRestart, { stdio: "inherit" }); // pass stdio to console
   }
 
   // Pass options into execargv for easy use of options like `--trace-exit`.
@@ -524,9 +515,10 @@ function restartAppInternal() {
 
   app.on("message", async data => {
     try {
-      if (!data || data.event !== "babel-watch-filename") return;
-      const filename = data.filename;
-      if (!program.disableAutowatch) {
+      const msg = data as { event?: string; filename?: string };
+      if (!msg || msg.event !== "babel-watch-filename") return;
+      const filename = msg.filename as string;
+      if (!opts.disableAutowatch) {
         // use relative path for watch.add as it would let chokidar reconsile exclude patterns
         const relativeFilename = path.relative(cwd, filename);
         watcher.add(relativeFilename);
@@ -540,13 +532,17 @@ function restartAppInternal() {
         try {
           lenBuf.writeUInt32BE(sourceBuf.length, 0);
           fs.writeSync(pipeFd, lenBuf, 0, 4);
-          sourceBuf.length &&
+          if (sourceBuf.length) {
             fs.writeSync(pipeFd, sourceBuf, 0, sourceBuf.length);
+          }
 
           lenBuf.writeUInt32BE(mapBuf.length, 0);
           fs.writeSync(pipeFd, lenBuf, 0, 4);
-          mapBuf.length && fs.writeSync(pipeFd, mapBuf, 0, mapBuf.length);
-        } catch (error) {
+          if (mapBuf.length) {
+            fs.writeSync(pipeFd, mapBuf, 0, mapBuf.length);
+          }
+        } catch (_error) {
+          const error = _error as Error & { code: string };
           // EPIPE means `pipeFd` has been closed. We can ignore this
           if (error.code !== "EPIPE") {
             throw error;
@@ -568,7 +564,7 @@ function restartAppInternal() {
     pipe: pipeFilename,
     args: program.args,
     debug,
-    handleUncaughtExceptions: !program.disableExHandler,
+    handleUncaughtExceptions: !opts.disableExHandler,
     transpileExtensions
   });
   pipeFd = fs.openSync(pipeFilename, "w");
@@ -578,8 +574,10 @@ function restartAppInternal() {
 // Only ignore based on extension for now, which we keep track of on our own for file watcher
 // purposes. `ignore` and `only` are passed to `babel.OptionManager` to let it make its own
 // determinations.
-function shouldIgnore(filename) {
-  if (!transpileExtensions.includes(path.extname(filename))) {
+function shouldIgnore(filename: string) {
+  const ext = path.extname(filename) as
+    ".js" | ".jsx" | ".es6" | ".es" | ".mjs" | ".cjs";
+  if (!transpileExtensions.includes(ext)) {
     return true;
   } else if (ignored[filename]) {
     // ignore cache for extra speed
@@ -588,13 +586,16 @@ function shouldIgnore(filename) {
   return false;
 }
 
-async function compile(filename) {
-  const opts = new babel.OptionManager().init({
+async function compile(filename: string) {
+  const opts = babel.loadOptionsSync({
     filename,
     ignore,
     only,
     configFile,
-    rootMode
+    rootMode,
+    // Runner uses module._compile() (CJS API), so Babel must output CJS.
+    // The `caller` API tells preset-env the consumer doesn't support static ESM.
+    caller: { name: "babel-watch", supportsStaticESM: false }
   });
 
   // If opts is not present, the file is ignored, either by explicit input into
@@ -605,10 +606,10 @@ async function compile(filename) {
   // Do not process config files since has already been done with the OptionManager
   // calls above and would introduce duplicates.
   opts.babelrc = false;
-  opts.sourceMaps = debug && program.debugSourceMaps ? "inline" : true;
+  opts.sourceMaps = debug && program.opts().debugSourceMaps ? "inline" : true;
   opts.ast = false;
 
-  return babel.transformFileAsync(filename, opts);
+  return babel.transformFileAsync(filename, opts as unknown as babel.InputOptions);
 }
 
 restartApp();

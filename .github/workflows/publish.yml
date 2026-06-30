@@ -1,0 +1,64 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
+jobs:
+  run-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: detect package.version changes
+        uses: tcastelly/package-json-updated-action@master
+        id: version-updated
+        with:
+          path: './ts_gen/package.json'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+        if: steps.version-updated.outputs.has-updated
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Create tag
+        uses: actions/github-script@v9
+        if: steps.version-updated.outputs.has-updated
+        env:
+          TAG_NAME: '${{ steps.package-version.outputs.current-version }}'
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          script: |
+            const { TAG_NAME } = process.env;
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/tags/${TAG_NAME}`,
+              sha: context.sha
+            })
+
+      - name: Install dependencies build and publish 🔧📦
+        run: |
+          npm ci
+          
+          # Extract version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Detected version: $VERSION"
+
+          # Check if version contains 'beta'
+          if [[ $VERSION == *"beta"* ]]; then
+            echo "Publishing with --tag beta"
+            npm publish --tag beta
+          else
+            echo "Publishing as latest"
+            npm publish
+          fi

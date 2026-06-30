@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "types": ["node"],
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "commonjs",
+    "allowJs": true,
+    "checkJs": true,
+    "target": "esnext",
+    "noImplicitAny": false,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"]
+}

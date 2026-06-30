@@ -1,40 +1,35 @@
-// @flow
+import path from 'node:path';
+import fs from 'node:fs';
+import sourceMapSupport from 'source-map-support';
 
-const path = require("path");
-const fs = require("fs");
-const sourceMapSupport = require("source-map-support");
-
-let sources = {};
-let maps = {};
+const maps: {[id: string]: any} = {};
 
 let pipeFd;
-const BUFFER = new Buffer.alloc(10 * 1024);
+const BUFFER = Buffer.alloc(10 * 1024);
 
-// $FlowIgnore Flow doesn't recognize require.extensions
-const reqExtensions /*: any */ = require.extensions;
+const reqExtensions: any = require.extensions;
 
 // Node by default uses '.js' loader to load all the files with unknown extensions
 const DEFAULT_LOADER = reqExtensions[".js"];
 
-function readLength(fd) {
+function readLength(fd: number) {
   let bytes = 0;
   while (typeof bytes === "number" && bytes !== 4) {
-    // $FlowIgnore position can be null
     bytes = fs.readSync(fd, BUFFER, 0, 4, null);
   }
   return BUFFER.readUInt32BE(0);
 }
 
-function readFileFromPipeSync(fd) {
+function readFileFromPipeSync(fd: number) {
   let length = readLength(fd);
   let result = Buffer.alloc(0);
   while (length > 0) {
-    // $FlowIgnore position can be null
     const newBytes = fs.readSync(
       fd,
       BUFFER,
       0,
-      Math.min(BUFFER.length, length)
+      Math.min(BUFFER.length, length),
+      null
     );
     length -= newBytes;
     result = Buffer.concat([result, BUFFER], result.length + newBytes);
@@ -42,7 +37,7 @@ function readFileFromPipeSync(fd) {
   return result.toString();
 }
 
-function babelWatchLoader(module_, filename, defaultHandler) {
+function babelWatchLoader(module_: any, filename: string, defaultHandler: any) {
   // apparently require loader needs to be synchronous, which
   // complicates things a little bit as we need to get source
   // file from the parent process synchronously.
@@ -50,9 +45,7 @@ function babelWatchLoader(module_, filename, defaultHandler) {
   // a named unix pipe (mkfifo). All the alternative ways would
   // require writing native code which usually brings large
   // dependencies to the project and I prefer to avoid that
-  //
-  // $FlowIgnore we know process.send exists b/c this is a child process
-  process.send({
+  process.send?.({
     event: "babel-watch-filename",
     filename: filename
   });
@@ -66,7 +59,7 @@ function babelWatchLoader(module_, filename, defaultHandler) {
   }
 }
 
-function registerExtension(ext) {
+function registerExtension(ext: string) {
   const defaultHandler = reqExtensions[ext] || DEFAULT_LOADER;
   reqExtensions[ext] = (module_, filename) => {
     // ignore node_modules by default. don't you dare contacting the parent process!
@@ -88,7 +81,7 @@ function registerExtension(ext) {
   };
 }
 
-function replaceExtensionHooks(extensions) {
+function replaceExtensionHooks(extensions: any) {
   for (const ext in reqExtensions) {
     registerExtension(ext);
   }
@@ -100,13 +93,23 @@ function replaceExtensionHooks(extensions) {
   }
 }
 
-process.on("message", options => {
-  if (!options || options.event !== "babel-watch-start") return;
+process.on("message", rawOptions => {
+  const options = rawOptions as {
+    event?: string;
+    transpileExtensions: string[];
+    debug: boolean;
+    handleUncaughtExceptions: boolean;
+    pipe: string;
+    args: string[];
+  };
+  if (!options || options.event !== "babel-watch-start") {
+    return;
+  }
   replaceExtensionHooks(options.transpileExtensions);
   sourceMapSupport.install({
     environment: "node",
     hookRequire: options.debug,
-    handleUncaughtExceptions: !!options.handleUncaughtExceptions,
+    handleUncaughtExceptions: options.handleUncaughtExceptions,
     retrieveSourceMap(filename) {
       const map = maps && maps[filename];
       if (map) {
@@ -123,6 +126,5 @@ process.on("message", options => {
 
   pipeFd = fs.openSync(options.pipe, "r");
   process.argv = ["node"].concat(options.args);
-  // $FlowIgnore doesn't recognize 'module' as it is internal
   require("module").runMain();
 });
