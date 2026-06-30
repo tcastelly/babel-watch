@@ -1,6 +1,6 @@
 {
   "name": "@tcy/babel-watch",
-  "version": "8.0.0-beta.6",
+  "version": "8.0.0-beta.7",
   "description": "Reload your babel-node app on JS source file changes. And do it *fast*.",
   "keywords": [
     "babel",
