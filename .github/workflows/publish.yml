@@ -1,4 +1,4 @@
-name: Publish
+name: Publish @tcy/babel-watch Package
 
 on:
   push:
@@ -22,13 +22,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Check out Git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         if: steps.version-updated.outputs.has-updated
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '24.x'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@tcy'
 
       - name: Create tag
         uses: actions/github-script@v9
