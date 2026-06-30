@@ -25,8 +25,13 @@ jobs:
         uses: actions/checkout@v7
         if: steps.version-updated.outputs.has-updated
 
+      - name: retrieve the version from main package.json
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@main
+        if: steps.version-updated.outputs.has-updated
+
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
